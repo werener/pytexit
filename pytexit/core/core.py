@@ -17,7 +17,6 @@ unicode_tbl = {
     "β": "beta",
     "χ": "chi",
     "δ": "delta",
-    "÷": "/",
     "ε": "epsilon",
     "γ": "gamma",
     "ψ": "psi",
@@ -191,7 +190,7 @@ class LatexVisitor(ast.NodeVisitor):
                 kw["max"] = self.visit(comp.iter.args[0])
             # Remove 1 for range max
             try:
-                kw["max"] = str(int(kw["max"]) - 1)
+                kw["max"] = int(kw["max"]) - 1
             except ValueError:
                 if kw["max"].endswith(r"+1"):
                     # write 'sum([... range(N+1)])' as (sum^N)
@@ -226,29 +225,80 @@ class LatexVisitor(ast.NodeVisitor):
         else:
             args = ", ".join(map(self.visit, n.args))
 
-        # Usual math functions
-        if func in ["cos", "sin", "tan", "cosh", "sinh", "tanh"]:
-            return "{0}{1}".format(func, self.parenthesis(args))
-        elif func == "sqrt":
-            return self.sqrt(args)
-        # by default log refers to log10 in Python. Unless people import it as
-        # ln
-        elif func in ["log", "ln"]:
-            return r"\ln%s" % self.parenthesis(args)
-        elif func in ["log10"]:
-            return r"\log%s" % self.parenthesis(args)
+        # inequality + factorial kludge
+        if func == "empty":
+            return " "
+        elif func == "fact":
+            return "!"
+
+        # degrees
+        elif func in ["deg", "degree"]:
+            return r"%s^{\circ}" % self.parenthesis(args)
+
+        # trig
+        elif func in ["cos", "sin", "cosh", "sinh"]:
+            return r"\{0}{1}".format(func, self.parenthesis(args))
+        elif func in ["tg", "tan"]:
+            return r"\tan%s" % self.parenthesis(args)
+        elif func in ["tgh", "tanh"]:
+            return r"\tanh%s" % self.parenthesis(args)
+        elif func in ["ctg", "cot"]:
+            return r"\cot%s" % self.parenthesis(args)
+        elif func in ["ctgh", "coth"]:
+            return r"\coth%s" % self.parenthesis(args)
+
+       # arcs trig
+
         elif func in ["arccos", "acos"]:
             return r"\arccos%s" % self.parenthesis(args)
         elif func in ["arcsin", "asin"]:
             return r"\arcsin%s" % self.parenthesis(args)
-        elif func in ["atan", "arctan"]:
+        elif func in ["atan", "arctan", "arctg", "atg"]:
             return r"\arctan%s" % self.parenthesis(args)
-        elif func in ["arcsinh"]:
+        elif func in ["arcctg", "actg", "arccot", "acot"]:
+            return r"\acot%s" % self.parenthesis(args)
+
+        #arcs hyperbolic trig
+
+        elif func in ["arcsinh", "asinh"]:
             return r"\sinh^{-1}%s" % self.parenthesis(args)
-        elif func in ["arccosh"]:
+        elif func in ["arccosh", "acosh"]:
             return r"\cosh^{-1}%s" % self.parenthesis(args)
-        elif func in ["arctanh"]:
+        elif func in ["arctanh", "atanh"]:
             return r"\tanh^{-1}%s" % self.parenthesis(args)
+        elif func in ["arcctg", "actg", "arccot", "acot"]:
+            return r"\coth^{-1}%s" % self.parenthesis(args)
+
+        #  FINDING THIS WITH CTRL+F  $
+
+        # roots
+        elif func in ["sqrt", "squareroot"]:
+            return self.sqrt(args)
+        elif func in ["cuberoot", "cbrt"]:
+            return self.cbrt(args)
+        elif func in ["root"]:
+            (n, argument) = list(map(self.visit, n.args))
+            return r"\sqrt[%s]{%s}" % (
+                n,
+                argument,
+            )
+        # factorial
+        elif func in ["fact", "factorial"]:
+            return r"%s!" % self.parenthesis(args)
+
+        # logs
+        elif func in ["log", "logarithm"] and len(n.args) == 2:
+            (base, argument) = list(map(self.visit, n.args))
+            return r"\log_{%s}{%s}" % (
+                base,
+                argument,
+            )
+        elif func in ["log", "logarithm", "ln"]:
+            return r"\ln%s" % self.parenthesis(args)
+        elif func in ["log10", "lg"]:
+            return r"\lg%s" % self.parenthesis(args)
+
+        #wtf?
         elif func in ["power", "pow"]:
             args = [arg.strip() for arg in args.split(",")]
             if "+" in args[0] or "-" in args[0]:
@@ -263,46 +313,72 @@ class LatexVisitor(ast.NodeVisitor):
         elif func in ["exp"]:
             return r"e^{%s}" % args
 
-        # Additional functions (convention names, not in numpy library)
-        elif func in ["kronecher", "kron"]:
-            return r"\delta_{%s}" % args
-
-        # Integrals
-        # TODO : add this integral in a visit_tripOp function???
-        elif func in ["quad"]:
-            (f, a, b) = list(map(self.visit, n.args))
-            return r"\int_{%s}^{%s} %s%s d%s" % (
+        #indefinite integral
+        elif func in ["defInteg", "defInt", "definteg", "defint"]:
+            (a, b, f,  differential) = list(map(self.visit, n.args))
+            return r"\int_{%s}^{%s} %s d%s" % (
                 a,
                 b,
                 f,
-                self.parenthesis(self.dummy_var),
-                self.dummy_var,
+                differential,
             )
-        #
+
+        # definite integral
+        elif func in ["indefInteg", "indInt", "integral", "indint", "indefinteg"]:
+            (f,differential) = list(map(self.visit, n.args))
+            return r"\int_{}{} %s d%s" % (
+                f,
+                differential,
+            )
+
+        # limit
+        elif func in ["lim", "limit"]:
+            (f, a, b) = list(map(self.visit, n.args))
+            return r"\lim_{%s\to%s} %s" % (
+                a,
+                b,
+                f,
+            )
+
         # Sum
-        elif func in ["sum"]:
-            if blist:
-                return r"\sum_{%s=%s}^{%s} %s" % (
-                    kwargs["iterator"],
-                    kwargs["min"],
-                    kwargs["max"],
-                    kwargs["content"],
-                )
-            else:
-                return r"\sum %s" % args
+        elif func in ["sum", "summation"]:
+            (variable, From, To, function) = list(map(self.visit, n.args))
+            return r"\sum_{%s=%s}^{%s} %s" % (
+                variable,
+                From,
+                To,
+                function,
+            )
+
+        #Product
+        elif func in ["prod", "product"]:
+            (variable, From, To, function) = list(map(self.visit, n.args))
+            return r"\prod_{%s=%s}^{%s} %s" % (
+                variable,
+                From,
+                To,
+                function,
+            )
+
 
         # Recurrent operator names
         elif func in ["f", "g", "h"]:
             return r"%s{%s}" % (func, self.parenthesis(args))
 
+        # wtf?
+        elif func in ["kronecher", "kron"]:
+            return r"\delta_{%s}" % args
+
         else:
             return self.operator(func, args)
+
+
 
     def visit_Name(self, n):
         """Special features:
         - Recognize underscripts in identifiers names (default: underscore)
         - Recognize upperscripts in identifiers names (default: ˆ, valid in Python3)
-        Note that using ˆ is not recommended in variable names because it may
+        Note that using ˆ is not recommanded in variable names because it may
         be confused with the operator ^, but in some special cases of extensively
         long formulas with lots of indices, it may help the readability of the
         code
@@ -368,11 +444,11 @@ class LatexVisitor(ast.NodeVisitor):
         def read_tree(t):
             """Write a LaTeX readable name"""
             r = t["val"]
-            if t["low"]:
+            if t["low"] != []:
                 #                child = [self.group(read_tree(tc)) for tc in t['low']]
                 child = [read_tree(tc) for tc in t["low"]]
                 r += "_{0}".format(self.group(",".join(child)))
-            if t["up"]:
+            if t["up"] != []:
                 #                child = [self.group(read_tree(tc)) for tc in t['up']]
                 child = [read_tree(tc) for tc in t["up"]]
                 r += "^{0}".format(self.group(",".join(child)))
@@ -431,12 +507,10 @@ class LatexVisitor(ast.NodeVisitor):
         elif m in ["eps"]:
             m = r"\epsilon"
 
-        elif m in [
-            "lbd"
-        ]:  # lambda is not a valid identifier in Python so people use other things
+        elif m in ["lbd", "lamb"]:  # lambda is not a valid identifier in Python so people use other things
             m = r"\lambda"
 
-        elif m in ["Lbd"]:
+        elif m in ["Lbd", "Lamb"]:
             m = r"\Lambda"
 
         elif m in ["inf", "infinity", "infty"]:
@@ -445,7 +519,7 @@ class LatexVisitor(ast.NodeVisitor):
         # Replace Delta even if not full word  - Allow for expressions such as
         # ΔE
         elif "Delta" in m:
-            m = m.replace("Delta", "\\Delta ")
+            m = m.replace("Delta", "\Delta ")
 
         return m
 
@@ -464,6 +538,7 @@ class LatexVisitor(ast.NodeVisitor):
         return self.prec(n.op)
 
     def visit_BinOp(self, n):
+
         if self.prec(n.op) > self.prec(n.left):
             left = self.parenthesis(self.visit(n.left))
         elif isinstance(n.op, ast.Pow) and self.prec(n.op) == self.prec(n.left):
@@ -472,9 +547,6 @@ class LatexVisitor(ast.NodeVisitor):
         else:
             left = self.visit(n.left)
         if self.prec(n.op) > self.prec(n.right):
-            right = self.parenthesis(self.visit(n.right))
-        elif isinstance(n.op, ast.Sub) and self.prec(n.op) == self.prec(n.right):
-            # Keep parenthesis around subtracted term, for instance: a-(b-c)
             right = self.parenthesis(self.visit(n.right))
         else:
             right = self.visit(n.right)
@@ -596,36 +668,36 @@ class LatexVisitor(ast.NodeVisitor):
     def visit_USub(self, n):
         return "-"
 
-    def visit_Constant(self, n):
+    def visit_Num(self, n):
         if self.simplify_fractions:
-            if any([n.value == key for key in fracs.keys()]):
-                return r"{0}\frac{{{1}}}{{{2}}}".format(*fracs[n.value])
-        if n.value == 2146136747:  # Magic number to handle ÷ symbol
-            return r"\div"
-        if self.looks_like_int(n.value):
-            return "%d" % n.value
-        return str(n.value)
+            if any([n.n == key for key in fracs.keys()]):
+                return r"{0}\frac{{{1}}}{{{2}}}".format(*fracs[n.n])
+        if self.looks_like_int(n.n):
+            return "%d" % n.n
+        return str(n.n)
 
     # New visits
     def visit_Assign(self, n):
-        """Rewrite Assign function (instead of executing it)"""
+        "Rewrite Assign function (instead of executing it)"
         return r"%s=%s" % (self.visit(n.targets[0]), self.visit(n.value))
 
     def visit_Compare(self, n):
-        """Rewrite Compare function (instead of executing it)"""
+        "Rewrite Compare function (instead of executing it)"
 
         def visit_Op(op):
-            """Note : not called by visit like other visit functions"""
+            "Note : not called by visit like other visit functions"
             if isinstance(op, ast.Lt):
                 return "<"
             elif isinstance(op, ast.LtE):
-                return "<="
+                return "\leq "
             elif isinstance(op, ast.Gt):
                 return ">"
             elif isinstance(op, ast.GtE):
-                return ">="
+                return "\geq "
             elif isinstance(op, ast.Eq):
                 return "="
+            elif isinstance(op, ast.NotEq):
+                return "\\neq "
             else:
                 raise ValueError("Unknown comparator", op.__class__)
 
@@ -642,7 +714,7 @@ class LatexVisitor(ast.NodeVisitor):
     # Default
     def generic_visit(self, n):
         if isinstance(n, ast.AST):
-            return r"%s%s" % (
+            return r"" % (
                 n.__class__.__name__,
                 ", ".join(map(self.visit, [getattr(n, f) for f in n._fields])),
             )
@@ -659,7 +731,7 @@ class LatexVisitor(ast.NodeVisitor):
 
     def group(self, expr):
         """Returns expr, add brackets if needed"""
-        # Note: No brackets required when in parentheses
+        # Note: No brackets required when in parenthesis
         if len(expr) == 1 or expr.startswith(r"\left(") and expr.endswith(r"\right)"):
             return expr
         else:
@@ -677,6 +749,9 @@ class LatexVisitor(ast.NodeVisitor):
     def sqrt(self, args):
         return r"\sqrt{0}".format(self.brackets(args))
 
+    def cbrt(self, args):
+        return r"\sqrt[3]{0}".format(self.brackets(args))
+
     def operator(self, func, args=None):
         if args is None:
             return r"\operatorname{{{0}}}".format(func)
@@ -684,7 +759,7 @@ class LatexVisitor(ast.NodeVisitor):
             return r"\operatorname{{{0}}}{1}".format(func, self.parenthesis(args))
 
 
-def preprocessing(expr):
+def preprocessing(expr, simplify):
     """Pre-process a string."""
 
     # replace unicode values (so that even a Python 2 pytexit can parse formula
@@ -692,7 +767,7 @@ def preprocessing(expr):
     for u in unicode_tbl:
         expr = expr.replace(u, unicode_tbl[u])
 
-    # remove unnecessary calls to libraries
+    # remove unnessary calls to libraries
     # Example: np.exp(-3) would be read exp(-3)
     expr = expr.strip()  # remove spaces on the side
     for m in clear_modules:
@@ -706,7 +781,7 @@ def preprocessing(expr):
 def replace_scientific(s):
     """Replace 'NUMBER e NUMBER' with powers of 10"""
 
-    regexp = re.compile(r"(\d*\.?\d+)[eE]([-+]?\d*\.?\d+)")
+    regexp = re.compile(r"(\d*\.{0,1}\d+)[eE]([-+]?\d*\.{0,1}\d+)")
 
     matches = regexp.findall(s)
     splits = regexp.split(s)
@@ -737,9 +812,9 @@ def simplify(s):
     # TODO: look for groups that looks like \(\([\(.+\)]*\)\ ),
     # (2 pairs of external parenthesis around any number (even 0) of closed pairs
     # of parenthesis)  -> then remove one of the the two external parenthesis
-    # Tried with re.findall(r'\(\([^\(^\)]*(\([^\(^\)]+\))*[^\(^\)]*\)\)', s)  but
+    # TRied with re.findall(r'\(\([^\(^\)]*(\([^\(^\)]+\))*[^\(^\)]*\)\)', s)  but
     # it doesnt work. One should better try to look for inner pairs and remove that
-    # one after one.
+    # one after one..
 
     # Replace '\left(NUMBER\right)' with 'NUMBER'
     # ------------
