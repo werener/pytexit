@@ -229,7 +229,7 @@ class LatexVisitor(ast.NodeVisitor):
         if func == "empty":
             return " "
         elif func == "fact":
-            return "!"
+            return "%s!" % args
 
         # degrees
         elif func in ["deg", "degree"]:
