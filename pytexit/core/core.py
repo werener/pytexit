@@ -226,95 +226,114 @@ class LatexVisitor(ast.NodeVisitor):
             args = ", ".join(map(self.visit, n.args))
 
         # inequality + factorial kludge
-        if func == "empty":
+        loweredFunc = func.lower()
+        if loweredFunc == "empty":
             return " "
-        elif func == "fact":
+        elif loweredFunc == "fact":
             return "%s!" % args
 
         # degrees
-        elif func in ["deg", "degree"]:
+        elif loweredFunc in ["deg", "degree"]:
             return r"%s^{\circ}" % self.parenthesis(args)
 
         # trig
-        elif func in ["cos", "sin", "cosh", "sinh"]:
+        elif loweredFunc in ["cos", "sin", "cosh", "sinh"]:
             return r"\{0}{1}".format(func, self.parenthesis(args))
-        elif func in ["tg", "tan"]:
+        elif loweredFunc in ["tg", "tan"]:
             return r"\tan%s" % self.parenthesis(args)
-        elif func in ["tgh", "tanh"]:
+        elif loweredFunc in ["tgh", "tanh"]:
             return r"\tanh%s" % self.parenthesis(args)
-        elif func in ["ctg", "cot"]:
+        elif loweredFunc in ["ctg", "cot"]:
             return r"\cot%s" % self.parenthesis(args)
-        elif func in ["ctgh", "coth"]:
+        elif loweredFunc in ["ctgh", "coth"]:
             return r"\coth%s" % self.parenthesis(args)
 
        # arcs trig
 
-        elif func in ["arccos", "acos"]:
+        elif loweredFunc in ["arccos", "acos"]:
             return r"\arccos%s" % self.parenthesis(args)
-        elif func in ["arcsin", "asin"]:
+        elif loweredFunc in ["arcsin", "asin"]:
             return r"\arcsin%s" % self.parenthesis(args)
-        elif func in ["atan", "arctan", "arctg", "atg"]:
+        elif loweredFunc in ["atan", "arctan", "arctg", "atg"]:
             return r"\arctan%s" % self.parenthesis(args)
-        elif func in ["arcctg", "actg", "arccot", "acot"]:
+        elif loweredFunc in ["arcctg", "actg", "arccot", "acot"]:
             return r"\acot%s" % self.parenthesis(args)
 
         #arcs hyperbolic trig
 
-        elif func in ["arcsinh", "asinh"]:
+        elif loweredFunc in ["arcsinh", "asinh"]:
             return r"\sinh^{-1}%s" % self.parenthesis(args)
-        elif func in ["arccosh", "acosh"]:
+        elif loweredFunc in ["arccosh", "acosh"]:
             return r"\cosh^{-1}%s" % self.parenthesis(args)
-        elif func in ["arctanh", "atanh"]:
+        elif loweredFunc in ["arctanh", "atanh"]:
             return r"\tanh^{-1}%s" % self.parenthesis(args)
-        elif func in ["arcctg", "actg", "arccot", "acot"]:
+        elif loweredFunc in ["arcctg", "actg", "arccot", "acot"]:
             return r"\coth^{-1}%s" % self.parenthesis(args)
 
         #  FINDING THIS WITH CTRL+F  $
 
+        # differentiation
+        elif loweredFunc in ["derivative", "diff", "differential", "d"] and len(n.args) == 2:
+            (y, x) = list(map(self.visit, n.args))
+            return r"{\frac{d %s}{d %s}}" % (y, x)
+        elif loweredFunc in ["derivative", "diff", "differential", "d"]:
+            (f, x, y) = list(map(self.visit, n.args))
+            return r"\frac{d^{2} %s}{d %s d %s}" % (f, x, y)
+        elif loweredFunc in ["partial", "pardev", "delta"] and len(n.args) == 2:
+            (y, x) = list(map(self.visit, n.args))
+            return r"\frac{\partial{%s}}{\partial{%s}}" % (y, x)
+        elif loweredFunc in ["partial", "pardev", "delta"]:
+            (f, x, y) = list(map(self.visit, n.args))
+            return r"\frac{\partial^{2}{%s}}{\partial{%s} \partial{%s}}" % (f, x, y)
+        elif loweredFunc in ["diracdelta", "dirac_delta", "dirac"]:
+            return r"\delta (%s)" % args
+        elif loweredFunc in ["unitstep", "unit_step", "delta"]:
+            return r"\delta (%s)" % args
+
         # roots
-        elif func in ["sqrt", "squareroot"]:
+        elif loweredFunc in ["sqrt", "squareroot"]:
             return self.sqrt(args)
-        elif func in ["cuberoot", "cbrt"]:
+        elif loweredFunc in ["cuberoot", "cbrt"]:
             return self.cbrt(args)
-        elif func in ["root"]:
+        elif loweredFunc in ["root","surd"]:
             (n, argument) = list(map(self.visit, n.args))
             return r"\sqrt[%s]{%s}" % (
                 n,
                 argument,
             )
         # factorial
-        elif func in ["fact", "factorial"]:
+        elif loweredFunc in ["fact", "factorial"]:
             return r"%s!" % self.parenthesis(args)
 
         # logs
-        elif func in ["log", "logarithm"] and len(n.args) == 2:
+        elif loweredFunc in ["log", "logarithm"] and len(n.args) == 2:
             (base, argument) = list(map(self.visit, n.args))
             return r"\log_{%s}{%s}" % (
                 base,
                 argument,
             )
-        elif func in ["log", "logarithm", "ln"]:
+        elif loweredFunc in ["log", "logarithm", "ln"]:
             return r"\ln%s" % self.parenthesis(args)
-        elif func in ["log10", "lg"]:
+        elif loweredFunc in ["log10", "lg"]:
             return r"\lg%s" % self.parenthesis(args)
 
         #wtf?
-        elif func in ["power", "pow"]:
+        elif loweredFunc in ["power", "pow"]:
             args = [arg.strip() for arg in args.split(",")]
             if "+" in args[0] or "-" in args[0]:
                 return self.power(self.parenthesis(args[0]), args[1])
             else:
                 return self.power(args[0], args[1])
-        elif func in ["divide"]:
+        elif loweredFunc in ["divide"]:
             args = [arg.strip() for arg in args.split(",")]
             return self.division(args[0], args[1])
-        elif func in ["abs", "fabs"]:
+        elif loweredFunc in ["abs", "fabs", "absolute"]:
             return r"|%s|" % args
-        elif func in ["exp"]:
+        elif loweredFunc in ["exp", "exponent"]:
             return r"e^{%s}" % args
 
         #indefinite integral
-        elif func in ["defInteg", "defInt", "definteg", "defint"]:
+        elif loweredFunc in ["definteg", "defint", "defintegral", "defint", "definteg_", "defint_", "defintegral_", "defint_"]:
             (a, b, f,  differential) = list(map(self.visit, n.args))
             return r"\int_{%s}^{%s} %s d%s" % (
                 a,
@@ -324,7 +343,7 @@ class LatexVisitor(ast.NodeVisitor):
             )
 
         # definite integral
-        elif func in ["indefInteg", "indInt", "integral", "indint", "indefinteg"]:
+        elif loweredFunc in ["indefinteg", "indint", "integral", "indefintegral", "integrate", "indefinteg_", "indint_", "integral_", "indefintegral_", "integrate_"]:
             (f,differential) = list(map(self.visit, n.args))
             return r"\int_{}{} %s d%s" % (
                 f,
@@ -332,7 +351,7 @@ class LatexVisitor(ast.NodeVisitor):
             )
 
         # limit
-        elif func in ["lim", "limit"]:
+        elif loweredFunc in ["lim", "limit"]:
             (f, a, b) = list(map(self.visit, n.args))
             return r"\lim_{%s\to%s} %s" % (
                 a,
@@ -341,7 +360,7 @@ class LatexVisitor(ast.NodeVisitor):
             )
 
         # Sum
-        elif func in ["sum", "summation"]:
+        elif loweredFunc in ["sum", "summation"]:
             (variable, From, To, function) = list(map(self.visit, n.args))
             return r"\sum_{%s=%s}^{%s} %s" % (
                 variable,
@@ -351,7 +370,7 @@ class LatexVisitor(ast.NodeVisitor):
             )
 
         #Product
-        elif func in ["prod", "product"]:
+        elif loweredFunc in ["prod", "product"]:
             (variable, From, To, function) = list(map(self.visit, n.args))
             return r"\prod_{%s=%s}^{%s} %s" % (
                 variable,
@@ -366,7 +385,7 @@ class LatexVisitor(ast.NodeVisitor):
             return r"%s{%s}" % (func, self.parenthesis(args))
 
         # wtf?
-        elif func in ["kronecher", "kron"]:
+        elif loweredFunc in ["kronecher", "kron"]:
             return r"\delta_{%s}" % args
 
         else:
@@ -759,7 +778,7 @@ class LatexVisitor(ast.NodeVisitor):
             return r"\operatorname{{{0}}}{1}".format(func, self.parenthesis(args))
 
 
-def preprocessing(expr):
+def preprocessing(expr, simp_outp):
     """Pre-process a string."""
 
     # replace unicode values (so that even a Python 2 pytexit can parse formula
