@@ -759,7 +759,7 @@ class LatexVisitor(ast.NodeVisitor):
             return r"\operatorname{{{0}}}{1}".format(func, self.parenthesis(args))
 
 
-def preprocessing(expr, simplify):
+def preprocessing(expr):
     """Pre-process a string."""
 
     # replace unicode values (so that even a Python 2 pytexit can parse formula
