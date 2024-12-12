@@ -332,9 +332,33 @@ class LatexVisitor(ast.NodeVisitor):
         elif loweredFunc in ["exp", "exponent"]:
             return r"e^{%s}" % args
 
-        #indefinite integral
-        elif loweredFunc in ["definteg", "defint", "defintegral", "defint", "definteg_", "defint_", "defintegral_", "defint_"]:
-            (a, b, f,  differential) = list(map(self.visit, n.args))
+
+        # indefinite integral
+        elif (loweredFunc in [
+                    "integrate", "integral",
+                    "indefinteg", "indint",
+                    "integ", "int",
+                    "indefintegral","indefinteg_",
+                    "indint_", "integral_",
+                    "indefintegral_", "integrate_"]
+              and len(n.args) == 2):
+
+            (f,differential) = list(map(self.visit, n.args))
+            return r"\int_{}{} %s d%s" % (
+                f,
+                differential,
+            )
+
+        #definite integral
+        elif loweredFunc in [
+                    "integral",  "integrate",
+                    "integ", "int",
+                    "defint", "definteg",
+                    "defintegral", "defint",
+                    "definteg_", "defint_",
+                    "integral_", "defintegral_",
+                    "defint_", "integrate_"]:
+            (f, differential, a, b) = list(map(self.visit, n.args))
             return r"\int_{%s}^{%s} %s d%s" % (
                 a,
                 b,
@@ -342,13 +366,6 @@ class LatexVisitor(ast.NodeVisitor):
                 differential,
             )
 
-        # definite integral
-        elif loweredFunc in ["indefinteg", "indint", "integral", "indefintegral", "integrate", "indefinteg_", "indint_", "integral_", "indefintegral_", "integrate_"]:
-            (f,differential) = list(map(self.visit, n.args))
-            return r"\int_{}{} %s d%s" % (
-                f,
-                differential,
-            )
 
         # limit
         elif loweredFunc in ["lim", "limit"]:
@@ -493,9 +510,12 @@ class LatexVisitor(ast.NodeVisitor):
             "gamma",
             "delta",
             "epsilon",
+            "varepsilon",
             "zeta",
             "eta",
             "theta",
+            "vartheta",
+            "lambda",
             "iota",
             "kappa",
             "mu",
@@ -503,9 +523,11 @@ class LatexVisitor(ast.NodeVisitor):
             "xi",
             "pi",
             "rho",
+            "varrho",
             "sigma",
             "tau",
             "phi",
+            "varphi",
             "chi",
             "psi",
             "omega",
@@ -523,6 +545,48 @@ class LatexVisitor(ast.NodeVisitor):
         ]:
             m = r"\%s" % m
 
+        #no big letters in greek -> still need to check if it's just capitalized
+        elif m.lower() in [
+            "alpha",
+            "beta",
+            "gamma",
+            "delta",
+            "epsilon",
+            "varepsilon",
+            "zeta",
+            "eta",
+            "theta",
+            "vartheta",
+            "lambda",
+            "iota",
+            "kappa",
+            "mu",
+            "nu",
+            "xi",
+            "pi",
+            "rho",
+            "varrho",
+            "sigma",
+            "tau",
+            "phi",
+            "varphi",
+            "chi",
+            "psi",
+            "omega",
+            "Gamma",
+            "Delta",
+            "Theta",
+            "Lambda",
+            "Xi",
+            "Pi",
+            "Sigma",
+            "Upsilon",
+            "Phi",
+            "Psi",
+            "Omega",
+        ]:
+            m = r"\%s" % m.lower()
+
         elif m in ["eps"]:
             m = r"\epsilon"
 
@@ -539,13 +603,14 @@ class LatexVisitor(ast.NodeVisitor):
         # ΔE
         elif "Delta" in m:
             m = m.replace("Delta", "\Delta ")
-
+        elif "delta" in m:
+            m = m.replace("delta", "\Delta ")
         return m
 
     def visit_UnaryOp(self, n):
         # Note: Unary operator followed by a power needs no parenthesis
         if self.prec(n.op) > self.prec(n.operand) and not (
-            hasattr(n.operand, "op") and isinstance(n.operand.op, ast.Pow)
+            hasattr(n.operand, "op") and issinstance(n.operand.op, ast.Pow)
         ):
             return r"{0}{1}".format(
                 self.visit(n.op), self.parenthesis(self.visit(n.operand))
@@ -778,7 +843,7 @@ class LatexVisitor(ast.NodeVisitor):
             return r"\operatorname{{{0}}}{1}".format(func, self.parenthesis(args))
 
 
-def preprocessing(expr, simp_outp):
+def preprocessing(expr):
     """Pre-process a string."""
 
     # replace unicode values (so that even a Python 2 pytexit can parse formula
