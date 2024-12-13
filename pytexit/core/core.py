@@ -265,9 +265,9 @@ class LatexVisitor(ast.NodeVisitor):
             return r"\sinh^{-1}%s" % self.parenthesis(args)
         elif loweredFunc in ["arccosh", "acosh"]:
             return r"\cosh^{-1}%s" % self.parenthesis(args)
-        elif loweredFunc in ["arctanh", "atanh"]:
+        elif loweredFunc in ["arctanh", "atanh", "atgh", "arctgh"]:
             return r"\tanh^{-1}%s" % self.parenthesis(args)
-        elif loweredFunc in ["arcctg", "actg", "arccot", "acot"]:
+        elif loweredFunc in ["arcctgh", "actgh", "arccoth", "acoth"]:
             return r"\coth^{-1}%s" % self.parenthesis(args)
 
         #  FINDING THIS WITH CTRL+F  $
