@@ -378,7 +378,7 @@ class LatexVisitor(ast.NodeVisitor):
 
         # Sum
         elif loweredFunc in ["sum", "summation"]:
-            (variable, From, To, function) = list(map(self.visit, n.args))
+            (function, variable, From, To) = list(map(self.visit, n.args))
             return r"\sum_{%s=%s}^{%s} %s" % (
                 variable,
                 From,
@@ -388,7 +388,7 @@ class LatexVisitor(ast.NodeVisitor):
 
         #Product
         elif loweredFunc in ["prod", "product"]:
-            (variable, From, To, function) = list(map(self.visit, n.args))
+            (function, variable, From, To) = list(map(self.visit, n.args))
             return r"\prod_{%s=%s}^{%s} %s" % (
                 variable,
                 From,
