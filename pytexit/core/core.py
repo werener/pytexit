@@ -228,7 +228,7 @@ class LatexVisitor(ast.NodeVisitor):
         # inequality + factorial kludge
         loweredFunc = func.lower()
         if loweredFunc == "empty":
-            return " "
+            return "..."
         elif loweredFunc == "fact":
             return "%s!" % args
 
@@ -285,10 +285,10 @@ class LatexVisitor(ast.NodeVisitor):
         elif loweredFunc in ["partial", "pardev", "delta"]:
             (f, x, y) = list(map(self.visit, n.args))
             return r"\frac{\partial^{2}{%s}}{\partial{%s} \partial{%s}}" % (f, x, y)
-        elif loweredFunc in ["diracdelta", "dirac_delta", "dirac"]:
+        elif loweredFunc in ["dirac_delta", "dirac"]:
             return r"\delta (%s)" % args
-        elif loweredFunc in ["unitstep", "unit_step", "delta"]:
-            return r"\delta (%s)" % args
+        elif loweredFunc in ["unitstep", "unit_step", "theta"]:
+            return r"\theta (%s)" % args
 
         # roots
         elif loweredFunc in ["sqrt", "squareroot"]:
@@ -332,7 +332,11 @@ class LatexVisitor(ast.NodeVisitor):
         elif loweredFunc in ["exp", "exponent"]:
             return r"e^{%s}" % args
 
-
+        # gamma + beta functions
+        elif (loweredFunc in ["gamma", "gammafunction"]):
+            return r"\Gamma%s " % self.parenthesis(args)
+        elif (loweredFunc in ["beta", "betafunction"]):
+            return r"\Beta%s " % self.parenthesis(args)
         # indefinite integral
         elif (loweredFunc in [
                     "integrate", "integral",
@@ -370,7 +374,7 @@ class LatexVisitor(ast.NodeVisitor):
         # limit
         elif loweredFunc in ["lim", "limit"]:
             (f, a, b) = list(map(self.visit, n.args))
-            return r"\lim_{%s\to%s} %s" % (
+            return r"\lim_{%s\to %s} %s" % (
                 a,
                 b,
                 f,
